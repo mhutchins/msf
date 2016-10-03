@@ -87,40 +87,28 @@ void spi_dumpqueue(void)
 
 	for (i=0; i< SPI_BUF_LEN; i++)
 	{
-		printf("%d -> 0x%02x\n", i, SPI_buf[i]);
+		fprintf(stderr, "%d -> 0x%02x\n", i, SPI_buf[i]);
 	}
-}
-
-void max7219(uint8_t addr, uint8_t data)
-{
-	PORTB &= ~(1 << SPI_SS);	// SS LOW
-	SPDR = addr;
-	while(!(SPSR & (1 << SPIF)));
-	SPDR = data;
-	while(!(SPSR & (1 << SPIF)));
-	PORTB |= (1 << SPI_SS);		// SS HIGH
-	_delay_us(10);
-	PORTB &= ~(1 << SPI_SS);	// SS LOW
 }
 
 void spi_send(uint8_t data)
 {
 	while(spi_enqueue(data) == 1)
 	{
-		printf("Waiting for free SPI queue slot..\n");
+		fprintf(stderr, "Waiting for free SPI queue slot..\n");
 		_delay_ms(100);
 	}
 
 	if (spi_busy == 0)
 	{
-		printf("SPI Idle ");
+		fprintf(stderr, "SPI Idle ");
 		if (spi_dequeue(&data) == 0)
 		{
-			printf(" - triggering with 0x%02x\n", data);
+			fprintf(stderr, " - triggering with 0x%02x\n", data);
 			SPDR = data;
 		}
 		else
-			printf(" - but queue is empty\n");
+			fprintf(stderr, " - but queue is empty\n");
 		
 	}
 }
@@ -143,11 +131,11 @@ ISR (SPI_STC_vect)
 	{
 		spi_busy = 1;
 		SPDR = data;
-		printf("SPI_ISR: 0x%02x\n", data);
+		fprintf(stderr, "SPI_ISR: 0x%02x\n", data);
 	}
 	else
 	{
-		printf("SPI_ISR: idle\n");
+		fprintf(stderr, "SPI_ISR: idle\n");
 		spi_busy = 0;
 	}
 

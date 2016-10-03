@@ -1,35 +1,60 @@
+PROJ=msf
 CXX=avr-gcc
-INCLUDE=-I ../arduino-lib/ -I ./
-
-LIBS=-L ~/lib -lm -larduino
+LIBS=-L ~/lib -lm
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections
+CFLAGS= $(MCU) $(CPU_SPEED) -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -ffunction-sections -fdata-sections --std=c99
+
 PORT=/dev/cuaU0 # FreeBSD
 ifeq ($(shell uname),Linux)
-	PORT=/dev/ttyACM0
+        PORT=/dev/ttyUSB0
+        PORT=/dev/ttyACM0
 endif
+BAUD=57600
+BAUD=115200
+
+INCLUDE=-I ./
+
+OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o
+
 
 default: build upload
 
-build: msf.hex
+upload:
+	avrdude -V -F -p m328p -c arduino -b $(BAUD) -Uflash:w:$(PROJ).hex -P$(PORT)
 
-msf.hex: msf.elf
+build: $(PROJ).hex
+
+$(PROJ).hex: $(PROJ).elf
 	avr-objcopy -O ihex $< $@
 
-OBJECTS= timer.c ds3231.c pcf8574.c twimaster.c spi.c # Put other objects here
-msf.elf: msf.c $(OBJECTS)
-	$(CXX) $(CFLAGS) $(INCLUDE) $^ -o $@ $(LIBS)
+connect:
+	screen $(PORT)  $(BAUD)
 
-upload:
-	avrdude -V -F -p m328p -c arduino -b 115200 -Uflash:w:msf.hex -P$(PORT)
+# link
+$(PROJ).elf: $(OBJS)
+	$(CXX) $(CFLAGS) $(OBJS) $(LIBS) -o $@
 
-clean:
-	@echo -n Cleaning ...
-	$(shell rm msf.elf 2> /dev/null)
-	$(shell rm msf.hex 2> /dev/null)
-	$(shell rm *.o 2> /dev/null)
-	@echo " done"
+# pull in dependency info for *existing* .o files
+-include $(OBJS:.o=.d)
 
+# compile and generate dependency info;
+# more complicated dependency computation, so all prereqs listed
+# will also become command-less, prereq-less targets
+#   sed:    strip the target (everything before colon)
+#   sed:    remove any continuation backslashes
+#   fmt -1: list words one per line
+#   sed:    strip leading spaces
+#   sed:    add trailing colons
 %.o: %.c
-	$(CXX) $< $(CFLAGS) $(INCLUDE) -c -o $@
+	$(CXX) -c $(CFLAGS) $(INCLUDE) $*.c -o $*.o
+	$(CXX) -MM $(CFLAGS) $(INCLUDE) $*.c > $*.d
+	@mv -f $*.d $*.d.tmp
+	@sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
+
+# remove compilation products
+clean:
+	rm -f $(PROJ) *.o *.d *.hex *.map *.elf
