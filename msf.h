@@ -5,7 +5,6 @@ extern volatile uint8_t sec;
 extern uint8_t msf_bit_a[];
 extern uint8_t msf_bit_b[];
 extern volatile int hour, min, mon, dom, dow, year;
-extern time_t msf_time[];
 
 
 void binprint(uint16_t data, uint8_t len);

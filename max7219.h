@@ -14,7 +14,15 @@
 #define MAX7219_SHUTDOWN        0x0C
 #define MAX7219_TEST            0x0F
 
+#define D_A	6
+#define D_B	5
+#define D_C	4
+#define D_D	3
+#define D_E	2
+#define D_F	1
+#define D_G	0
+
 void max7219(uint8_t addr, uint8_t data);
-void displaytime(time_t *clock);
-
-
+void displaytime(time_t clock);
+uint8_t getled(unsigned char ch);
+void printled(uint8_t bitval);

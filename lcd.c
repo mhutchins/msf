@@ -225,7 +225,7 @@ void LCD_Write_Int(int32_t num)
 
     for (i = num_count-1; i>= 0; i--)
     {
-        LCD_Write_Char(number[i] + 0b00110000);
+        LCD_Write_Char(number[i] + __extension__ 0b00110000);
     }
 }
 

@@ -7,6 +7,7 @@
 
 #include "i2cmaster.h"
 #include "util.h"
+#include "at24c32.h"
  
 #define AT24C32_ADDR 0x50
 

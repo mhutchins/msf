@@ -6,11 +6,15 @@
 #include <stdbool.h>
 #include <util/delay.h>
 #include <stdlib.h>
+#include <string.h>
 #include "msf.h"
 #include "max7219.h"
 #include "pcf8574.h"
+#include "keypad.h"
 
 #include "lcd.h"
+
+#include "main.h"
 
  
 #define	KP_R1C1	0x7e
@@ -47,8 +51,6 @@
 #define KEY_UP 0x00
 
 
-extern time_t *clock_time;
-
 struct {
 	uint8_t	scancode;
 	char	name[6];
@@ -74,6 +76,7 @@ void keypad(void)
 	static uint16_t key_ticks=0;
 	static uint16_t state_time=0;
 	static uint8_t repeat=0;
+	static struct tm temp_time;
 
 	key_ticks++;
 
@@ -116,21 +119,13 @@ void keypad(void)
 	{
 		case ST_IDLE:	
 			fprintf(stderr, "IDLE: ");
-			if (scancode == KP_R2C1)
-				LCD_write_byte(mode_WR|mode_CMD, 0x18, 0);
-			if (scancode == KP_R2C2)
-				LCD_write_byte(mode_WR|mode_CMD, 0x1C, 0);
-			if (scancode == KP_R3C1)
-				LCD_write_byte(mode_WR|mode_CMD, 0x1A, 0);
-			if (scancode == KP_R3C2)
-				LCD_write_byte(mode_WR|mode_CMD, 0x1E, 0);
 			if (scancode == KP_SET)
 			{
 				state_time=key_ticks;
 				state=ST_SET;
 			}
-			displaytime(&msf_time[0]);
-			displaytime(&msf_time[1]);
+			displaytime(time_master());
+			//displaytime(&msf_time[1]);
 			if (abs(msf_time[0] - msf_time[1]) == 60)
 				fprintf(stderr, " GOOD\n");
 			break;
@@ -151,6 +146,8 @@ void keypad(void)
 			if (scancode == KP_SLP)
 			{
 				state_time=key_ticks;
+				time_t temp=time_master();
+				memcpy(&temp_time, gmtime(&temp), sizeof(temp_time));
 				state=ST_SET_TIME;
 				break;
 			}

@@ -5,22 +5,24 @@
 #include <stdbool.h>
 #include "unixtime.h"
 #include "msf.h"
+#include "lcd.h"
 #include "util.h"
 #include <string.h>
+#include "led.h"
 
 #define DEBUG 1
 
 //                        2222222211111111
 //                        4444333322221111
 //                        8421842184218421
-//#define MIN_MASK	0b0001111101111100
-//#define MIN_PATT	0b0001111100000100
-#define MIN_MASK        0b0001111110111111
-#define MIN_PATT        0b0000000000111110
+//#define MIN_MASK	__extension__ 0b0001111101111100
+//#define MIN_PATT	__extension__ 0b0001111100000100
+#define MIN_MASK        __extension__ 0b0001111110111111
+#define MIN_PATT        __extension__ 0b0000000000111110
 
 
-#define SEC_MASK	0b0001001111111100
-#define SEC_PATT	0b0001000000000100
+#define SEC_MASK	__extension__ 0b0001001111111100
+#define SEC_PATT	__extension__ 0b0001000000000100
                           //___1_________1
                           //0001..000000k
                           //00000000001111111100
@@ -72,14 +74,21 @@ ISR(TIMER1_OVF_vect)
     static uint8_t e_lo=0;
     static uint8_t decode_idx=0;
     uint8_t state = 0;
-    tick++;
+    static uint8_t led_tick=0;
 
-
+    // Set the timer overflow for the next ineterrupt
     TCNT1 = offset;
 
-    PORTD = PORTD ^ (1 << PD3);        // LO
-
+    // Grab the current state of the MSF input
     state = ((PIND & (1 << PD2)) > 0);
+
+    PORTD = PORTD ^ (1 << PD3);        // LO
+    tick++;
+
+    if(led_tick++ % 5 == 0)
+	update_led();
+
+
     avg = avg + state;
     avg_shift = avg_shift << 1 | state ;
 
@@ -122,9 +131,9 @@ ISR(TIMER1_OVF_vect)
 	    if ((history & SEC_MASK) == SEC_PATT && (tick%80 == 0)) {
 		sec = (tick/80)-1;
 		set_msf_bit(msf_bit_a, sec,
-			    ((history & 0b0000100000000000) > 0));
+			    ((history & __extension__ 0b0000100000000000) > 0));
 		set_msf_bit(msf_bit_b, sec,
-			    ((history & 0b0000010000000000) > 0));
+			    ((history & __extension__ 0b0000010000000000) > 0));
 		fprintf(stderr, "\t%02d ", sec);
 		fprintf(stderr, " %d %d %d %d", e_hi, e_lo, e_hi + e_lo, tick);
 #ifndef TRACK

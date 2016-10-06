@@ -3,7 +3,7 @@ CXX=avr-gcc
 LIBS=-L ~/lib -lm
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS= $(MCU) $(CPU_SPEED) -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -ffunction-sections -fdata-sections --std=c99
+CFLAGS= $(MCU) $(CPU_SPEED) -Werror -pedantic -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -ffunction-sections -fdata-sections --std=c99
 
 PORT=/dev/cuaU0 # FreeBSD
 ifeq ($(shell uname),Linux)
@@ -15,7 +15,7 @@ BAUD=115200
 
 INCLUDE=-I ./
 
-OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o
+OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
 
 
 default: build upload

@@ -6,6 +6,7 @@
 #include <util/delay.h>
 #include <util/atomic.h>
 #include "i2cmaster.h"
+#include "util.h"
 
 void binprint(uint16_t data, uint8_t bits)
 {

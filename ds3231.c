@@ -6,6 +6,7 @@
 #include <util/delay.h>
 
 #include "unixtime.h"
+#include "ds3231.h"
 #include "i2cmaster.h"
 #include "util.h"
  
@@ -35,10 +36,9 @@ uint8_t ds3231_read(uint8_t addr)
         return datain;
 }
 
-
-struct tm * ds3231_readtime(void)
+time_t ds3231_readtime(void)
 {
-	static struct tm ds3231_tm;
+	tm_t ds3231_tm;
 
 	ds3231_tm.tm_sec = BcdToUint8(ds3231_read(0x00));
 	ds3231_tm.tm_min = BcdToUint8(ds3231_read(0x01));
@@ -90,8 +90,8 @@ struct tm * ds3231_readtime(void)
 
 */
 
-/*
 	fprintf(stderr, "%s %02d/%02d/%02d%02d %02d:%02d %02d\n", dayname[ds3231_tm.tm_wday], ds3231_tm.tm_mday, ds3231_tm.tm_mon, 20, ds3231_tm.tm_year, ds3231_tm.tm_hour, ds3231_tm.tm_min, ds3231_tm.tm_sec);
+/*
 	fprintf(stderr, "AL1: %02d %02d:%02d %02d\n", AL1_day, AL1_hour, AL1_min, AL1_sec);
 	fprintf(stderr, "AL2: %02d %02d:%02d \n", AL2_day, AL2_hour, AL2_min);
 	fprintf(stderr, "Temperature: [%d / %d] %.2f\n", ds3231_temp_degrees, ds3231_temp_fract, ds3231_temp_float);
@@ -104,5 +104,5 @@ struct tm * ds3231_readtime(void)
 	binprint(ds3231_status, 8);
 	fprintf(stderr, "\n");
 */
-	return (&ds3231_tm);
+	return (mktime(&ds3231_tm));
 }

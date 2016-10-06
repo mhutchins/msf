@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include <util/delay.h>
+#include "pcf8574.h"
 
 #include "util.h"
 

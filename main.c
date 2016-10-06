@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
@@ -7,12 +8,15 @@
 
 #include "i2cmaster.h"
 #include "spi.h"
+#include "led.h"
 #include "pcf8574.h"
 #include "ds3231.h"
 #include "max7219.h"
 #include <util/delay.h>
 
-#define BAUD 115200
+
+//#define BAUD 115200
+#define BAUD 57600
 #include <util/setbaud.h>
 
 #define BVV(bit, val) ((val)?_BV(bit):0)
@@ -21,9 +25,11 @@
 #include "msf.h"
 #include "at24c32.h"
 #include "keypad.h"
+#include "main.h"
 
 
-time_t	*clock_time;
+volatile time_t	rtc_time;
+volatile time_t	msf_time[2];
 
  
 static void usart_init(void)
@@ -64,15 +70,36 @@ int lcd_printf_char(char var, FILE *stream) {
     return 0;
 }
 
+
+int led_printf_char(char var, FILE *stream) {
+	static uint8_t idx=0;
+	uint8_t bitval;
+
+	if (var == '\n')
+	{
+		idx = 0;
+		return 0;
+	}
+        bitval = getled(var);
+        //max7219(MAX7219_DIGIT7 - idx, bitval);
+	//fprintf(stderr, "Sending %d to pos %d\n", bitval, idx);
+	led_framebuf[idx][0]=bitval;
+	led_framebuf[idx][1]=bitval;
+	led_framebuf[idx][2]=bitval;
+	led_framebuf[idx][3]=bitval;
+
+	idx = ((idx + 1) & 0x07);
+
+	return 0;
+}
 FILE display_serial = FDEV_SETUP_STREAM(usart_putchar_printf, NULL, _FDEV_SETUP_WRITE);
 FILE display_lcd = FDEV_SETUP_STREAM(lcd_printf_char, NULL, _FDEV_SETUP_WRITE);
+FILE display_led = FDEV_SETUP_STREAM(led_printf_char, NULL, _FDEV_SETUP_WRITE);
 
 int main(void)
 {
-	time_t rtc_time=0;
-	clock_time = &rtc_time;
 	uint8_t count=0;
-	uint8_t lcd_bl=0;
+	//uint8_t lcd_bl=0;
 
 	usart_init();
 	i2c_init();
@@ -84,7 +111,7 @@ int main(void)
 	max7219(MAX7219_SCANLIMIT, 0x07);
 	max7219(MAX7219_INTENSITY, 0x02);
 	max7219(MAX7219_TEST, 0x00);
-	max7219(MAX7219_DECODE, 0xFF);
+	max7219(MAX7219_DECODE, 0x00);
 
 	stderr = &display_serial;
 	stdout = &display_lcd;
@@ -132,21 +159,31 @@ int main(void)
 */
 
 	LCD_Init();
+
     while(1)
     {
+	//max7219(MAX7219_SHUTDOWN, 0x01);
+
+        //fprintf(&display_led, "Hello000");
+	//max7219(MAX7219_DIGIT0, (1 << count));
 	count++;
+	//count = count & 0x07;
         /*main program loop here */
 
-	rtc_time = mktime(ds3231_readtime());
-	clock_time = &rtc_time;
+	rtc_time = ds3231_readtime();
+	fprintf(stderr, "RTC RET: %d\n", (uint16_t)rtc_time);
 
 	//LCD_Clear();
 	//fprintf(stdout, "Hi ");
 
+/*
 	if (count % 10)
 		lcd_bl= 1 - lcd_bl;
 
-	LCD_BL(lcd_bl);
+*/
+
+	LCD_BL(1);
+
 
 /*
 	if (sync_flag == 1)
@@ -162,7 +199,7 @@ int main(void)
 
 	keypad();
 
-	fprintf(stderr, "LOOP [%d]\n", lcd_bl);
+	fprintf(&display_lcd, "LOOP [%02x]\n", count);
     }
 }
 
@@ -173,3 +210,25 @@ int main(void)
 	fprintf(stderr, "!!!!!\n");
 }
 */
+
+time_t time_master(void)
+{
+	time_t clock_time=0;
+
+	if (msf_time[0] != 0 && msf_time[1] != 0)
+	{
+		if (abs(msf_time[0] - msf_time[1]) == 60)
+		{
+			if(msf_time[0] > msf_time[1])
+				clock_time=msf_time[0];
+			else
+				clock_time=msf_time[1];
+		}
+	}
+
+	if (clock_time == 0)
+		clock_time = rtc_time;
+
+	fprintf(stderr, "TIME_MASTER: returning %u\n", (uint16_t) clock_time);
+	return clock_time;
+}
