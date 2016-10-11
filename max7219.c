@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include "unixtime.h"
+#include "time.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
@@ -33,10 +33,12 @@ void displaytime(time_t clock)
 {
 	struct tm *timeptr;
 
-	timeptr=gmtime(&clock);
+	timeptr=localtime(&clock);
+	//timeptr->tm_isdst=0;
+	mktime(timeptr);
 
 
-	fprintf(&display_led, "%02u%02u   T\n", timeptr->tm_hour, timeptr->tm_min);
+	fprintf(&display_led, "%02u%02u T\n", timeptr->tm_hour, timeptr->tm_min);
 	//fprintf(&display_led, "Hello  1");
 
 /*

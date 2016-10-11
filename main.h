@@ -1,6 +1,6 @@
 
-extern volatile time_t rtc_time;
-extern volatile time_t msf_time[2];
+extern time_t rtc_time;
+extern time_t msf_time[2];
 
 time_t time_master(void);
 

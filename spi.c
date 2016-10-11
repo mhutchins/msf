@@ -30,6 +30,9 @@ void spi_init(void)
 	SPCR &= ~(1 << SPR0);
 	SPCR &= ~(1 << SPR1);
 	
+	//SPCR &= ~(1 << SPR0);
+	//SPCR != (1 << SPR1);
+	
 	for (i=0; i< SPI_BUF_LEN; i++)
 		SPI_buf[i]=i+1;
 

@@ -4,7 +4,8 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
-#include "unixtime.h"
+#include "time.h"
+//#include "time.h"
 
 #include "i2cmaster.h"
 #include "spi.h"
@@ -15,8 +16,10 @@
 #include <util/delay.h>
 
 
-//#define BAUD 115200
-#define BAUD 57600
+#define BAUD 115200
+#define BAUD_TOL 5
+
+//#define BAUD 57600
 #include <util/setbaud.h>
 
 #define BVV(bit, val) ((val)?_BV(bit):0)
@@ -28,8 +31,8 @@
 #include "main.h"
 
 
-volatile time_t	rtc_time;
-volatile time_t	msf_time[2];
+time_t	rtc_time;
+time_t	msf_time[2];
 
  
 static void usart_init(void)
@@ -105,6 +108,8 @@ int main(void)
 	i2c_init();
 	spi_init();
 	timer_init();
+	struct tm *temp_tm;
+	long unixtime;
 
 
 	max7219(MAX7219_SHUTDOWN, 0x01);
@@ -160,6 +165,11 @@ int main(void)
 
 	LCD_Init();
 
+	fprintf(stderr, "Libc version: %s\n", 	__AVR_LIBC_VERSION_STRING__);
+
+
+	set_zone(0);
+	
     while(1)
     {
 	//max7219(MAX7219_SHUTDOWN, 0x01);
@@ -171,7 +181,10 @@ int main(void)
         /*main program loop here */
 
 	rtc_time = ds3231_readtime();
-	fprintf(stderr, "RTC RET: %d\n", (uint16_t)rtc_time);
+	unixtime=rtc_time + UNIX_OFFSET;
+	temp_tm = localtime(&rtc_time);
+	fprintf(stderr, "RTC RET: %02d:%02d\n", temp_tm->tm_hour, temp_tm->tm_min);
+	fprintf(stderr, "RTC RET: %lu\n", unixtime);
 
 	//LCD_Clear();
 	//fprintf(stdout, "Hi ");

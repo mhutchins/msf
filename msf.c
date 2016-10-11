@@ -3,7 +3,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
-#include "unixtime.h"
+#include "time.h"
 #include "msf.h"
 #include "lcd.h"
 #include "util.h"
@@ -63,8 +63,7 @@ void timer_init(void)
 
 #define SAMPLES	8
 
-ISR(TIMER1_OVF_vect)
-{
+ISR(TIMER1_OVF_vect, ISR_BLOCK) {
     static uint8_t avg = 0;
     static uint8_t avg_shift = 0;
     static uint8_t last_high_avg_shift = 0;

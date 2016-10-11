@@ -4,8 +4,9 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include <util/delay.h>
+#include <string.h>
 
-#include "unixtime.h"
+#include "time.h"
 #include "ds3231.h"
 #include "i2cmaster.h"
 #include "util.h"
@@ -36,9 +37,12 @@ uint8_t ds3231_read(uint8_t addr)
         return datain;
 }
 
+struct tm  ds3231_tm;
 time_t ds3231_readtime(void)
 {
-	tm_t ds3231_tm;
+	time_t retval;
+	time_t retval_tmp;
+	long unix;
 
 	ds3231_tm.tm_sec = BcdToUint8(ds3231_read(0x00));
 	ds3231_tm.tm_min = BcdToUint8(ds3231_read(0x01));
@@ -47,6 +51,7 @@ time_t ds3231_readtime(void)
 	ds3231_tm.tm_mon = BcdToUint8(ds3231_read(0x05));
 	ds3231_tm.tm_wday = ds3231_read(0x03);
 	ds3231_tm.tm_year = BcdToUint8(ds3231_read(0x06));
+	ds3231_tm.tm_isdst = 0;
 
 
 /*
@@ -91,6 +96,7 @@ time_t ds3231_readtime(void)
 */
 
 	fprintf(stderr, "%s %02d/%02d/%02d%02d %02d:%02d %02d\n", dayname[ds3231_tm.tm_wday], ds3231_tm.tm_mday, ds3231_tm.tm_mon, 20, ds3231_tm.tm_year, ds3231_tm.tm_hour, ds3231_tm.tm_min, ds3231_tm.tm_sec);
+
 /*
 	fprintf(stderr, "AL1: %02d %02d:%02d %02d\n", AL1_day, AL1_hour, AL1_min, AL1_sec);
 	fprintf(stderr, "AL2: %02d %02d:%02d \n", AL2_day, AL2_hour, AL2_min);
@@ -104,5 +110,14 @@ time_t ds3231_readtime(void)
 	binprint(ds3231_status, 8);
 	fprintf(stderr, "\n");
 */
-	return (mktime(&ds3231_tm));
+	retval=mktime(&ds3231_tm);
+	unix = retval + UNIX_OFFSET;
+	memcpy(&ds3231_tm, localtime((time_t *)&unix), sizeof(ds3231_tm));
+	retval_tmp=mktime(&ds3231_tm);
+	
+	fprintf(stderr, "TMP: %ul\n", (unsigned int)retval_tmp);
+
+	fprintf(stderr, "Conv: %s %02d/%02d/%02d%02d", dayname[ds3231_tm.tm_wday], ds3231_tm.tm_mday, ds3231_tm.tm_mon, 20, ds3231_tm.tm_year);
+	fprintf(stderr, "%02d:%02d %02d\n", ds3231_tm.tm_hour, ds3231_tm.tm_min, ds3231_tm.tm_sec);
+	return retval;
 }

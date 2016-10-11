@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include "unixtime.h"
+#include "time.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
@@ -64,7 +64,7 @@ typedef enum {
 		ST_SET_AL1,
 		ST_SET_AL2,
 		ST_SET_TIME,
-		ST_GET_SET
+		ST_DOSET
 } States;
 
 #define KEY_TIMEOUT	100
@@ -81,7 +81,6 @@ void keypad(void)
 	key_ticks++;
 
 	uint8_t scancode=0;
-	uint8_t inc_value;
 	uint8_t divisor;
 
         pcf8574_write(0, 0x0f);
@@ -105,7 +104,6 @@ void keypad(void)
 	if (repeat > 20)
 		divisor=1;
 
-	inc_value=(repeat%divisor) == 0;
 
 	if (key_ticks - state_time > KEY_TIMEOUT && state != ST_IDLE)
 	{
@@ -154,12 +152,18 @@ void keypad(void)
 			break;
 		case ST_SET_AL1:
 			fprintf(stderr, "SET AL1: ");
+			state = ST_DOSET;
 			break;
 		case ST_SET_AL2:
 			fprintf(stderr, "SET AL2: ");
+			state = ST_DOSET;
 			break;
 		case ST_SET_TIME:
 			fprintf(stderr, "SET TIME: ");
+			state = ST_DOSET;
+			break;
+		case ST_DOSET:
+			fprintf(stderr, "Divisor: %d", divisor);
 			break;
 		default:
 			fprintf(stderr, "Illegal state: %d", state);

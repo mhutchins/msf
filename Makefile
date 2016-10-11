@@ -1,10 +1,17 @@
 PROJ=msf
 CXX=avr-gcc
-LIBS=-L ~/lib -lm
+LIBS=-L /usr/local/avr/lib/avr5 -lm
+#LIBS=-L ~/lib -lm
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS= $(MCU) $(CPU_SPEED) -Werror -pedantic -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -ffunction-sections -fdata-sections --std=c99
+CFLAGS=  $(MCU) $(CPU_SPEED) -Werror -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -ffunction-sections -fdata-sections --std=c99
 
+CC = avr-gcc
+OBJCOPY = avr-objcopy
+OBJDUMP = avr-objdump
+SIZE = avr-size
+AR = avr-ar rcs
+NM = avr-nm
 PORT=/dev/cuaU0 # FreeBSD
 ifeq ($(shell uname),Linux)
         PORT=/dev/ttyUSB0
@@ -13,9 +20,11 @@ endif
 BAUD=57600
 BAUD=115200
 
-INCLUDE=-I ./
+#INCLUDE=-I ./ -I /opt/avr/include
+INCLUDE=-I ./ -I /usr/local/avr/include/
 
-OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
+OBJS := unixtime.o main.o util.o lcd.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
+#OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
 
 
 default: build upload
@@ -33,7 +42,7 @@ connect:
 
 # link
 $(PROJ).elf: $(OBJS)
-	$(CXX) $(CFLAGS) $(OBJS) $(LIBS) -o $@
+	$(CXX) -v $(CFLAGS) $(OBJS) $(LIBS) -o $@
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)
