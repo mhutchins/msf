@@ -4,6 +4,9 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
+#include <string.h>
+
+#include "util.h"
 #include "time.h"
 //#include "time.h"
 
@@ -30,9 +33,10 @@
 #include "keypad.h"
 #include "main.h"
 
-
+time_t *clock_time;
 time_t	rtc_time;
 time_t	msf_time[2];
+time_t	alarm_time[2];
 
  
 static void usart_init(void)
@@ -73,6 +77,12 @@ int lcd_printf_char(char var, FILE *stream) {
     return 0;
 }
 
+void dumptime(char *prefix, struct tm *tm_ptr)
+{
+	fprintf(stderr, "%s: %02d:%02d:%02d\n", prefix, tm_ptr->tm_hour, tm_ptr->tm_min, tm_ptr->tm_sec);
+	fprintf(stderr, "%s: %s %02d/%02d/%04d\n", prefix, dayname[tm_ptr->tm_wday], tm_ptr->tm_mday, tm_ptr->tm_mon+1, tm_ptr->tm_year+1900);
+	fprintf(stderr, "%s: Yday: %d - DST %d\n", prefix, tm_ptr->tm_yday, tm_ptr->tm_isdst);
+}
 
 int led_printf_char(char var, FILE *stream) {
 	static uint8_t idx=0;
@@ -97,29 +107,52 @@ int led_printf_char(char var, FILE *stream) {
 }
 FILE display_serial = FDEV_SETUP_STREAM(usart_putchar_printf, NULL, _FDEV_SETUP_WRITE);
 FILE display_lcd = FDEV_SETUP_STREAM(lcd_printf_char, NULL, _FDEV_SETUP_WRITE);
-FILE display_led = FDEV_SETUP_STREAM(led_printf_char, NULL, _FDEV_SETUP_WRITE);
+//FILE display_led = FDEV_SETUP_STREAM(led_printf_char, NULL, _FDEV_SETUP_WRITE);
 
 int main(void)
 {
 	uint8_t count=0;
 	//uint8_t lcd_bl=0;
 
+	stderr = &display_serial;
+	stdout = &display_lcd;
+
+
 	usart_init();
 	i2c_init();
 	spi_init();
 	timer_init();
-	struct tm *temp_tm;
-	long unixtime;
+	struct tm temp_tm;
 
+/*
+	memset(&temp_tm, 0, sizeof(temp_tm));
+	dumptime("INIT:", &temp_tm);
+	temp_tm.tm_hour=12;
+	temp_tm.tm_min=34;
+	temp_tm.tm_mday=4;
+	temp_tm.tm_mon=5;
+	temp_tm.tm_year=115;
+	//temp_tm.tm_wday=1;
+	//temp_tm.tm_yday=123;
+
+	dumptime("BEFORE:", &temp_tm);
+	rtc_time=mktime(&temp_tm);
+
+	memset(&temp_tm, 0, sizeof(temp_tm));
+	dumptime("PRE:", &temp_tm);
+
+	gmtime_r(&rtc_time, &temp_tm);
+
+	dumptime("AFTER:", &temp_tm);
+
+	while(1);
+*/
 
 	max7219(MAX7219_SHUTDOWN, 0x01);
 	max7219(MAX7219_SCANLIMIT, 0x07);
 	max7219(MAX7219_INTENSITY, 0x02);
 	max7219(MAX7219_TEST, 0x00);
 	max7219(MAX7219_DECODE, 0x00);
-
-	stderr = &display_serial;
-	stdout = &display_lcd;
 
 /*    DDRD = 0x00;	// ALL INPUT
     PORTD = 0x00;	// NO PULLUP
@@ -181,11 +214,11 @@ int main(void)
         /*main program loop here */
 
 	rtc_time = ds3231_readtime();
-	unixtime=rtc_time + UNIX_OFFSET;
-	temp_tm = localtime(&rtc_time);
-	fprintf(stderr, "RTC RET: %02d:%02d\n", temp_tm->tm_hour, temp_tm->tm_min);
-	fprintf(stderr, "RTC RET: %lu\n", unixtime);
+	gmtime_r(&rtc_time, &temp_tm);
+	fprintf(stderr, "RTC RET: %02d:%02d\n", temp_tm.tm_hour, temp_tm.tm_min);
+	fprintf(stderr, "RTC RET: %02d/%02d/%04d\n", temp_tm.tm_mday, temp_tm.tm_mon+1, temp_tm.tm_year+1900);
 
+	clock_time=&rtc_time;
 	//LCD_Clear();
 	//fprintf(stdout, "Hi ");
 
@@ -224,24 +257,3 @@ int main(void)
 }
 */
 
-time_t time_master(void)
-{
-	time_t clock_time=0;
-
-	if (msf_time[0] != 0 && msf_time[1] != 0)
-	{
-		if (abs(msf_time[0] - msf_time[1]) == 60)
-		{
-			if(msf_time[0] > msf_time[1])
-				clock_time=msf_time[0];
-			else
-				clock_time=msf_time[1];
-		}
-	}
-
-	if (clock_time == 0)
-		clock_time = rtc_time;
-
-	fprintf(stderr, "TIME_MASTER: returning %u\n", (uint16_t) clock_time);
-	return clock_time;
-}

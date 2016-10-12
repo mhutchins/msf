@@ -31,15 +31,11 @@ void max7219(uint8_t addr, uint8_t data)
 
 void displaytime(time_t clock)
 {
-	struct tm *timeptr;
+	struct tm time;
 
-	timeptr=localtime(&clock);
-	//timeptr->tm_isdst=0;
-	mktime(timeptr);
+	gmtime_r(&clock, &time);
 
-
-	fprintf(&display_led, "%02u%02u T\n", timeptr->tm_hour, timeptr->tm_min);
-	//fprintf(&display_led, "Hello  1");
+	//fprintf(&display_led, "%02u%02u T\n", time.tm_hour, time.tm_min);
 
 /*
         max7219(MAX7219_DIGIT4, timeptr->tm_min%10);
@@ -51,7 +47,7 @@ void displaytime(time_t clock)
         //fprintf(&mylcd, "Hi ");
 
 	LCD_Clear();
-	fprintf(stderr, "CLOCK -> %02d:%02d\n", timeptr->tm_hour, timeptr->tm_min);
+	fprintf(stderr, "CLOCK -> %02d:%02d\n", time.tm_hour, time.tm_min);
 }
 
 uint8_t getled(unsigned char ch)

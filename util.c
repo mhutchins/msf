@@ -8,6 +8,8 @@
 #include "i2cmaster.h"
 #include "util.h"
 
+char dayname[][4]={"Err", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
 uint8_t BcdToUint8(uint8_t val)
 {
     return val - 6 * (val >> 4);

@@ -23,7 +23,7 @@ BAUD=115200
 #INCLUDE=-I ./ -I /opt/avr/include
 INCLUDE=-I ./ -I /usr/local/avr/include/
 
-OBJS := unixtime.o main.o util.o lcd.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
+OBJS := main.o util.o lcd.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
 #OBJS := main.o util.o lcd.o unixtime.o max7219.o keypad.o at24c32.o msf.o ds3231.o pcf8574.o twimaster.o spi.o led.o
 
 
