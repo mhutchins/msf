@@ -222,11 +222,17 @@ void keypad(void)
 					break;
 				case KP_SET:
 					if (set_source == STMODE_CLOCK)
+					{
 						fprintf(stderr, "Setting clock..\n");
+					}
 					if (set_source == STMODE_ALARM1)
+					{
 						fprintf(stderr, "Setting Alarm 1..\n");
+					}
 					if (set_source == STMODE_ALARM2)
+					{
 						fprintf(stderr, "Setting Alarm 2..\n");
+					}
 					state=ST_IDLE;
 					break;
 			}

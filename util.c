@@ -10,6 +10,11 @@
 
 char dayname[][4]={"Err", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
 
+uint8_t Uint8ToBcd(uint8_t ival)
+{
+ 	return ((ival / 10) << 4) | (ival % 10);
+}
+ 
 uint8_t BcdToUint8(uint8_t val)
 {
     return val - 6 * (val >> 4);
