@@ -7,3 +7,7 @@ uint8_t Uint8ToBcd(uint8_t ival);
 uint8_t BcdToUint8(uint8_t val);
 uint8_t BcdToBin24Hour(uint8_t bcdHour);
 
+
+void readalarm(uint8_t idx);
+void writealarm(uint8_t idx);
+

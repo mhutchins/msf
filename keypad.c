@@ -11,10 +11,12 @@
 #include "max7219.h"
 #include "pcf8574.h"
 #include "keypad.h"
+#include "ds3231.h"
 
 #include "lcd.h"
 
 #include "main.h"
+#include "util.h"
 #include "led.h"
 
  
@@ -47,6 +49,7 @@
 #define	KP_RAD	KP_R3C1
 #define	KP_SLP	KP_R3C2
 #define	KP_BUZ	KP_R3C3
+#define	KP_NONE	0xff
 
 #define KEY_DOWN 0x01
 #define KEY_UP 0x00
@@ -54,10 +57,6 @@
 #define STMODE_CLOCK 1
 #define STMODE_ALARM1 2
 #define STMODE_ALARM2 3
-
-#define SETITEM_NONE 0
-#define SETITEM_HOUR 1
-#define SETITEM_MIN 2
 
 struct {
 	uint8_t	scancode;
@@ -67,12 +66,23 @@ struct {
 } key;
 
 typedef enum {
+	SETITEM_NONE,
+	SETITEM_MIN,
+	SETITEM_HOUR,
+	SETITEM_DOW,
+	SETITEM_DOM,
+	SETITEM_MONTH,
+	SETITEM_YEAR
+} SetItems;
+
+typedef enum {
 		ST_IDLE,
 		ST_SET,
 		ST_SET_AL1,
 		ST_SET_AL2,
 		ST_SET_TIME,
-		ST_DOSET
+		ST_DOSET,
+		ST_DOSETWAIT
 } States;
 
 #define KEY_TIMEOUT	100
@@ -81,12 +91,13 @@ void keypad(void)
 {
 	static uint8_t	old_scancode=0;
 	static States state=ST_IDLE;
+	static States next_state=ST_IDLE;
 	static uint16_t key_ticks=0;
 	static uint16_t state_time=0;
 	static uint8_t repeat=0;
 	static struct tm temp_time;
 	static uint8_t set_source;
-	static uint8_t set_item;
+	static SetItems set_item;
 
 	key_ticks++;
 
@@ -122,11 +133,10 @@ void keypad(void)
 	}
 
 	if (state != ST_IDLE)
-		fprintf(stderr, "[0x%02x] [%d]-[%d]=%d ", scancode, key_ticks, state_time, (key_ticks-state_time));
+		fprintf(stderr, "[0x%02x] [%d]-[%d]=%d \n", scancode, key_ticks, state_time, (key_ticks-state_time));
 	switch(state)
 	{
 		case ST_IDLE:	
-			fprintf(stderr, "IDLE: ");
 			if (scancode == KP_SET)
 			{
 				state_time=key_ticks;
@@ -139,9 +149,11 @@ void keypad(void)
 		        set_led(2, (temp_time.tm_min/10)+'0', 0);
 		        set_led(3, (temp_time.tm_min%10)+'0', 0);
 
+		        set_led(4, (temp_time.tm_sec/10)+'0', 0);
+		        set_led(5, (temp_time.tm_sec%10)+'0', 0);
+
 			break;
 		case ST_SET:
-			fprintf(stderr, "SET: ");
 			if (scancode == KP_AL1)
 			{
 				state_time=key_ticks;
@@ -167,7 +179,6 @@ void keypad(void)
 			break;
 		case ST_SET_AL1:
 			state_time=key_ticks;
-			fprintf(stderr, "SET AL1: ");
 		        set_led(0, 'A', 1);
 		        set_led(1, '1', 1);
 		        set_led(2, ' ', 0);
@@ -179,7 +190,6 @@ void keypad(void)
 			break;
 		case ST_SET_AL2:
 			state_time=key_ticks;
-			fprintf(stderr, "SET AL2: ");
 		        set_led(0, 'A', 1);
 		        set_led(1, '2', 1);
 		        set_led(2, ' ', 0);
@@ -191,7 +201,6 @@ void keypad(void)
 			break;
 		case ST_SET_TIME:
 			state_time=key_ticks;
-			fprintf(stderr, "SET TIME: ");
 		        set_led(0, 'C', 1);
 		        set_led(1, 'l', 1);
 		        set_led(2, ' ', 0);
@@ -202,13 +211,17 @@ void keypad(void)
 			state = ST_DOSET;
 			break;
 		case ST_DOSET:
-			fprintf(stderr, "Divisor: %d", divisor);
+			fprintf(stderr, "Divisor: %d\n", divisor);
 			switch(scancode)
 			{
 				case KP_HOUR:
 					state_time=key_ticks;
 					if (set_item != SETITEM_HOUR)
+					{
 						set_item=SETITEM_HOUR;
+						next_state=ST_DOSET;
+						state=ST_DOSETWAIT;
+					}
 					else
 						temp_time.tm_hour = (temp_time.tm_hour < 23 ? temp_time.tm_hour + 1 : 0);
 					break;
@@ -216,7 +229,11 @@ void keypad(void)
 				case KP_MIN:
 					state_time=key_ticks;
 					if (set_item != SETITEM_MIN)
+					{
 						set_item=SETITEM_MIN;
+						next_state=ST_DOSET;
+						state=ST_DOSETWAIT;
+					}
 					else
 						temp_time.tm_min = (temp_time.tm_min < 58 ? temp_time.tm_min + 1 : 0);
 					break;
@@ -224,16 +241,23 @@ void keypad(void)
 					if (set_source == STMODE_CLOCK)
 					{
 						fprintf(stderr, "Setting clock..\n");
+						rtc_time=mktime(&temp_time);
+						ds3231_writetime(rtc_time);
 					}
 					if (set_source == STMODE_ALARM1)
 					{
 						fprintf(stderr, "Setting Alarm 1..\n");
+						alarm_time[0] = mktime(&temp_time);
+						writealarm(0);
 					}
 					if (set_source == STMODE_ALARM2)
 					{
 						fprintf(stderr, "Setting Alarm 2..\n");
+						alarm_time[1] = mktime(&temp_time);
+						writealarm(1);
 					}
-					state=ST_IDLE;
+					next_state=ST_IDLE;
+					state=ST_DOSETWAIT;
 					break;
 			}
 
@@ -252,12 +276,18 @@ void keypad(void)
 					set_led(2, ((temp_time.tm_min / 10) + '0'), 0);
 					set_led(3, ((temp_time.tm_min % 10) + '0'), 0);
 					break;
+				default:
+					break;
 			}
 			break;
+		case ST_DOSETWAIT:
+			state_time=key_ticks;
+			if (scancode == KP_NONE)
+				state=next_state;
+			break;
 		default:
-			fprintf(stderr, "Illegal state: %d", state);
+			fprintf(stderr, "Illegal state: %d\n", state);
 	}
 
-	fprintf(stderr, "\n");
 }
 

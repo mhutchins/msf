@@ -4,11 +4,16 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include <util/delay.h>
+#include <time.h>
 #include <util/atomic.h>
 #include "i2cmaster.h"
 #include "util.h"
+#include "main.h"
+#include "at24c32.h"
 
 char dayname[][4]={"Err", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
+#define AT24_ALARM_BASE_ADDR 0x10
 
 uint8_t Uint8ToBcd(uint8_t ival)
 {
@@ -39,6 +44,27 @@ uint8_t BcdToBin24Hour(uint8_t bcdHour)
         hour = BcdToUint8(bcdHour);
     }
     return hour;
+}
+
+void writealarm(uint8_t idx)
+{
+	uint8_t *ptr=(uint8_t *)&alarm_time[idx];
+
+	uint8_t i;
+
+	for (i=0;i<sizeof(time_t);i++)
+	    at24c32_write(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(time_t)), *ptr++);
+}
+
+void readalarm(uint8_t idx)
+{
+	uint8_t *ptr=(uint8_t *)&alarm_time[idx];
+
+	uint8_t i;
+
+	for (i=0;i<sizeof(time_t);i++)
+	    *(ptr++)=at24c32_read(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(time_t)));
+
 }
 
 void binprint(uint16_t data, uint8_t bits)

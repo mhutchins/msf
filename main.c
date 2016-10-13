@@ -186,8 +186,8 @@ int main(void)
 */
 
 
-    //at24c32_write(7, 11, 0x23);
-    //at24c32_write(7, 12, 0x34);
+    at24c32_write(7, 1, 0x23);
+    at24c32_write(7, 2, 0x34);
 	// Turn on 32khz output
 /*
 	uint8_t c=1;
@@ -203,8 +203,13 @@ int main(void)
 
 	set_zone(0);
 	
+	readalarm(0);
+	readalarm(1);
+	LCD_BL(1);
+
     while(1)
     {
+	//fprintf(stderr, "AT:: 0x%02x 0x%02x \n", at24c32_read(7,1), at24c32_read(7,2));
 	//max7219(MAX7219_SHUTDOWN, 0x01);
 
         //fprintf(&display_led, "Hello000");
@@ -215,8 +220,10 @@ int main(void)
 
 	rtc_time = ds3231_readtime();
 	gmtime_r(&rtc_time, &temp_tm);
-	fprintf(stderr, "RTC RET: %02d:%02d\n", temp_tm.tm_hour, temp_tm.tm_min);
-	fprintf(stderr, "RTC RET: %02d/%02d/%04d\n", temp_tm.tm_mday, temp_tm.tm_mon+1, temp_tm.tm_year+1900);
+/*
+	fprintf(stderr, "RTC RET: %02d:%02d ", temp_tm.tm_hour, temp_tm.tm_min);
+	fprintf(stderr, " %02d/%02d/%04d\n", temp_tm.tm_mday, temp_tm.tm_mon+1, temp_tm.tm_year+1900);
+*/
 
 	clock_time=&rtc_time;
 	//LCD_Clear();
@@ -228,7 +235,6 @@ int main(void)
 
 */
 
-	LCD_BL(1);
 
 
 /*
