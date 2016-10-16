@@ -9,6 +9,7 @@
 #include "util.h"
 #include <string.h>
 #include "led.h"
+#include "ds3231.h"
 
 #define DEBUG 1
 
@@ -21,7 +22,7 @@
 #define MIN_PATT        __extension__ 0b0000000000111110
 
 
-#define SEC_MASK	__extension__ 0b0001001111111100
+#define SEC_MASK	__extension__ 0b0001000111111100
 #define SEC_PATT	__extension__ 0b0001000000000100
                           //___1_________1
                           //0001..000000k
@@ -43,7 +44,7 @@ volatile int hour, min, mon, dom, dow, year;
 
 uint8_t msf_bit_a[MSF_SIZE];
 uint8_t msf_bit_b[MSF_SIZE];
-time_t msf_time[2];
+packed_time msf_time[2];
 
 void timer_init(void)
 {
@@ -120,15 +121,37 @@ ISR(TIMER1_OVF_vect, ISR_BLOCK) {
 		binprint(avg_shift, 8);
 		fprintf(stderr, "LA: ");
 		binprint(last_high_avg_shift, 8);
-		msf_time[decode_idx] = decode();
+		decode(&msf_time[decode_idx]);
+		if (decode(&msf_time[decode_idx]) == 0)
+		{
+			if (
+				msf_time[0].ten_minute == msf_time[1].ten_minute && \
+				msf_time[0].one_minute == msf_time[1].one_minute && \
+				msf_time[0].ten_hour == msf_time[1].ten_hour && \
+				msf_time[0].one_hour == msf_time[1].one_hour && \
+				msf_time[0].one_dom == msf_time[1].one_dom && \
+				msf_time[0].ten_dom == msf_time[1].ten_dom && \
+				msf_time[0].one_month == msf_time[1].one_month && \
+				msf_time[0].ten_month == msf_time[1].ten_month && \
+				msf_time[0].one_year == msf_time[1].one_year && \
+				msf_time[0].ten_year == msf_time[1].ten_year )
+			fprintf(stderr, "Storing MSF time!\n");
+			ds3231_writetime(&msf_time[decode_idx]);
+		}
+
 		decode_idx=1 - decode_idx;
+
 		tick=24;
 #ifndef TRACK
 		fprintf(stderr, "\n");
 #endif
 	} else {
+
+	    //if ((history & SEC_MASK) == SEC_PATT && (tick%80 != 0))
+	//	fprintf(stderr, "Sync miss: %d\n", tick%80);
 	    if ((history & SEC_MASK) == SEC_PATT && (tick%80 == 0)) {
 		sec = (tick/80)-1;
+		sec = sec % 60;
 		set_msf_bit(msf_bit_a, sec,
 			    ((history & __extension__ 0b0000100000000000) > 0));
 		set_msf_bit(msf_bit_b, sec,
@@ -149,13 +172,12 @@ ISR(TIMER1_OVF_vect, ISR_BLOCK) {
 
 }
 
-time_t decode(void)
+uint8_t decode(packed_time *time)
 {
     uint8_t idx;
     uint8_t parity_error_count = 0;
-    struct tm time;
 
-    memset(&time, 0, sizeof(struct tm));
+    memset(time, 0, sizeof(packed_time));
 
 #ifdef DEBUG
    	fprintf(stderr, "\n");
@@ -175,123 +197,135 @@ time_t decode(void)
 
     idx = 17;
 
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 80);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 40);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 20);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 10);
+    time->ten_year += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->ten_year += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->ten_year += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->ten_year += (get_msf_bit(msf_bit_a, idx++) * 1);
 
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 8);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_year += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->one_year += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->one_year += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->one_year += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->one_year += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nYear: 20%02d ", time.tm_year);
+   	fprintf(stderr, "\nYear: 20%02d ", (time->ten_year * 10) + time->one_year);
 #endif
     if (((getparity(17, 24) + get_msf_bit(msf_bit_b, 54)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_year = 0;
+        time->ten_year = 0;
+        time->one_year = 0;
     }
 
 
-    time.tm_mon += (get_msf_bit(msf_bit_a, idx++) * 10);
+    time->ten_month += (get_msf_bit(msf_bit_a, idx++) * 1);
 
-    time.tm_mon += (get_msf_bit(msf_bit_a, idx++) * 8);
-    time.tm_mon += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_mon += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_mon += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->one_month += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->one_month += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->one_month += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->one_month += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nMonth: %02d" ,time.tm_mon);
+   	fprintf(stderr, "\nMonth: %02d" ,(time->ten_month * 10) + time->one_month);
 #endif
     if (((getparity(25, 35) + get_msf_bit(msf_bit_b, 55)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_mon = 0;
+        time->ten_month = 0;
+        time->one_month = 0;
     }
 
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 20);
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 10);
+    time->ten_dom += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->ten_dom += (get_msf_bit(msf_bit_a, idx++) * 1);
 
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 8);
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_mday += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->one_dom += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->one_dom += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->one_dom += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->one_dom += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nDOM: %02d", time.tm_mday);
+   	fprintf(stderr, "\nDOM: %02d", (time->ten_dom * 10) + time->one_dom);
 #endif
     if (((getparity(25, 35) + get_msf_bit(msf_bit_b, 55)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_mday = 0;
+        time->ten_dom = 0;
+        time->one_dom = 0;
     }
 
 
-    time.tm_wday += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_wday += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_wday += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->dow += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->dow += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->dow += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nDOW: %d ", time.tm_wday);
+   	fprintf(stderr, "\nDOW: %d ", time->dow);
 #endif
     if (((getparity(36, 38) + get_msf_bit(msf_bit_b, 56)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_wday = 0;
+        time->dow = 0;
     }
 
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 20);
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 10);
+    time->ten_hour += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->ten_hour += (get_msf_bit(msf_bit_a, idx++) * 1);
 
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 8);
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_hour += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->one_hour += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->one_hour += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->one_hour += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->one_hour += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nHOUR: %02d:", time.tm_hour);
+   	fprintf(stderr, "\nHOUR: %02d:", (time->ten_hour * 10 ) + time->one_hour);
 #endif
     if (((getparity(39, 51) + get_msf_bit(msf_bit_b, 57)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_hour = 0;
+        time->ten_hour = 0;
+        time->one_hour = 0;
     }
 
 
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 40);
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 20);
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 10);
+    time->ten_minute += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->ten_minute += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->ten_minute += (get_msf_bit(msf_bit_a, idx++) * 1);
 
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 8);
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 4);
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 2);
-    time.tm_min += (get_msf_bit(msf_bit_a, idx++) * 1);
+    time->one_minute += (get_msf_bit(msf_bit_a, idx++) * 8);
+    time->one_minute += (get_msf_bit(msf_bit_a, idx++) * 4);
+    time->one_minute += (get_msf_bit(msf_bit_a, idx++) * 2);
+    time->one_minute += (get_msf_bit(msf_bit_a, idx++) * 1);
 #ifdef DEBUG
-   	fprintf(stderr, "\nMIN: %02d ", time.tm_min);
+   	fprintf(stderr, "\nMIN: %02d ", (time->ten_minute * 10) + time->one_minute);
 #endif
     if (((getparity(39, 51) + get_msf_bit(msf_bit_b, 57)) & 0x01) == 0) {
 	parity_error_count++;
 #ifdef DEBUG
 	fprintf(stderr, "!");
 #endif
-        time.tm_min = 0;
+        time->ten_month = 0;
+        time->one_month = 0;
     }
 
 #ifdef DEBUG
    	fprintf(stderr, "\nParity errors: %d\n", parity_error_count);
 #endif
 
-    if (time.tm_hour <= 23 || time.tm_min <= 59 || time.tm_mon <= 11 || time.tm_mday <= 31 || time.tm_wday <= 6  || parity_error_count > 0) {
-	return mktime(&time);
+    if (
+		(time->ten_hour * 10) + time->one_hour > 23 || \
+		(time->ten_minute * 10) + time->one_minute > 59 || \
+		(time->ten_month * 10) + time->one_month > 11 || \
+		(time->ten_dom * 10) + time->one_dom  > 31 || \
+		time->dow > 6  || \
+		parity_error_count > 0) {
+	memset(time, 0, sizeof(packed_time));
+	return 1;
     }
-    return 0;
+   return 0;
 }
 
 void clear_msf(uint8_t msf[])

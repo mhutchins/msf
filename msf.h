@@ -9,7 +9,7 @@ extern volatile int hour, min, mon, dom, dow, year;
 
 void binprint(uint16_t data, uint8_t len);
 void clear_msf(uint8_t msf[]);
-time_t decode(void);
+uint8_t  decode(packed_time *time);
 uint8_t get_msf_bit(uint8_t msf[], uint8_t period);
 uint8_t getparity(uint8_t start, uint8_t end);
 void set_msf_bit(uint8_t msf[], uint8_t period, uint8_t val);

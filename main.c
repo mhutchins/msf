@@ -8,7 +8,6 @@
 
 #include "util.h"
 #include "time.h"
-//#include "time.h"
 
 #include "i2cmaster.h"
 #include "spi.h"
@@ -33,11 +32,11 @@
 #include "keypad.h"
 #include "main.h"
 
-time_t *clock_time;
-time_t	rtc_time;
-time_t	msf_time[2];
-time_t	alarm_time[2];
 
+packed_time set_time;	 // Working copy of time - used during 'set' operations
+packed_time rtc_time;
+packed_time msf_time[2];
+s_tm_t alarm_time[2];
  
 static void usart_init(void)
 {
@@ -77,11 +76,10 @@ int lcd_printf_char(char var, FILE *stream) {
     return 0;
 }
 
-void dumptime(char *prefix, struct tm *tm_ptr)
+void dumptime(char *prefix, packed_time *tm)
 {
-	fprintf(stderr, "%s: %02d:%02d:%02d\n", prefix, tm_ptr->tm_hour, tm_ptr->tm_min, tm_ptr->tm_sec);
-	fprintf(stderr, "%s: %s %02d/%02d/%04d\n", prefix, dayname[tm_ptr->tm_wday], tm_ptr->tm_mday, tm_ptr->tm_mon+1, tm_ptr->tm_year+1900);
-	fprintf(stderr, "%s: Yday: %d - DST %d\n", prefix, tm_ptr->tm_yday, tm_ptr->tm_isdst);
+	fprintf(stderr, "%s: %02d:%02d:%02d\n", prefix, (tm->ten_hour*10) + tm->one_hour, (tm->ten_minute * 10) + tm->one_minute, (tm->ten_second * 10) + tm->one_second);
+	fprintf(stderr, "%s: %s %02d/%02d/%04d\n", prefix, dayname[tm->dow], (tm->ten_dom * 10) + tm-> one_dom, (tm->ten_month * 10 ) + tm->one_month, (tm->ten_year * 10 ) + tm->one_year+1900);
 }
 
 int led_printf_char(char var, FILE *stream) {
@@ -122,7 +120,7 @@ int main(void)
 	i2c_init();
 	spi_init();
 	timer_init();
-	struct tm temp_tm;
+	//struct tm temp_tm;
 
 /*
 	memset(&temp_tm, 0, sizeof(temp_tm));
@@ -201,8 +199,6 @@ int main(void)
 	fprintf(stderr, "Libc version: %s\n", 	__AVR_LIBC_VERSION_STRING__);
 
 
-	set_zone(0);
-	
 	readalarm(0);
 	readalarm(1);
 	LCD_BL(1);
@@ -218,14 +214,14 @@ int main(void)
 	//count = count & 0x07;
         /*main program loop here */
 
-	rtc_time = ds3231_readtime();
-	gmtime_r(&rtc_time, &temp_tm);
+	ds3231_readtime(&rtc_time);
+	//gmtime_r(&rtc_time, &temp_tm);
 /*
 	fprintf(stderr, "RTC RET: %02d:%02d ", temp_tm.tm_hour, temp_tm.tm_min);
 	fprintf(stderr, " %02d/%02d/%04d\n", temp_tm.tm_mday, temp_tm.tm_mon+1, temp_tm.tm_year+1900);
 */
 
-	clock_time=&rtc_time;
+	//clock_time=&rtc_time;
 	//LCD_Clear();
 	//fprintf(stdout, "Hi ");
 
@@ -247,7 +243,7 @@ int main(void)
 	_delay_ms(100);
 */
 
-	_delay_ms(100);
+	_delay_ms(80);
 
 	keypad();
 

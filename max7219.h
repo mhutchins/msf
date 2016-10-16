@@ -23,6 +23,5 @@
 #define D_G	0
 
 void max7219(uint8_t addr, uint8_t data);
-void displaytime(time_t clock);
 uint8_t getled(unsigned char ch);
 void printled(uint8_t bitval);

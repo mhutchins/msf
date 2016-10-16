@@ -78,6 +78,8 @@ typedef enum {
 typedef enum {
 		ST_IDLE,
 		ST_SET,
+		ST_AL1,
+		ST_AL2,
 		ST_SET_AL1,
 		ST_SET_AL2,
 		ST_SET_TIME,
@@ -94,38 +96,51 @@ void keypad(void)
 	static States next_state=ST_IDLE;
 	static uint16_t key_ticks=0;
 	static uint16_t state_time=0;
-	static uint8_t repeat=0;
-	static struct tm temp_time;
+	static uint8_t kp_repeat=0;
 	static uint8_t set_source;
 	static SetItems set_item;
+	uint8_t kp_delay;
 
 	key_ticks++;
 
+	uint8_t kp_val;
+
 	uint8_t scancode=0;
-	uint8_t divisor;
+	static uint8_t kp_threshold;
 
         pcf8574_write(0, 0x0f);
         scancode = pcf8574_read(0);
         pcf8574_write(0, 0xf0);
         scancode |= pcf8574_read(0);
 
+	
+	kp_val=0;
+
+	kp_delay=20;
+	if (kp_repeat > 10)
+		kp_delay = 5;
+	if (kp_repeat > 40)
+		kp_delay = 1;
+	if (kp_repeat > 80)
+		kp_delay = 0;
+
+	if (kp_threshold-- == 0)
+	{
+		kp_threshold=kp_delay;
+		kp_val=1;
+	}
+
+
 	if (scancode != old_scancode)	
 	{
-		repeat=0;
+		kp_repeat=0;
 		old_scancode = scancode;
+		kp_val=1;
 	}
 	else
-		repeat++;
+		kp_repeat++;
 
 	
-	if (repeat == 0)
-		divisor=10;
-	if (repeat > 10)
-		divisor=5;
-	if (repeat > 20)
-		divisor=1;
-
-
 	if (key_ticks - state_time > KEY_TIMEOUT && state != ST_IDLE)
 	{
 		state=ST_IDLE;
@@ -142,16 +157,45 @@ void keypad(void)
 				state_time=key_ticks;
 				state=ST_SET;
 			}
-			gmtime_r(clock_time, &temp_time);
 
-		        set_led(0, (temp_time.tm_hour/10)+'0', 0);
-		        set_led(1, (temp_time.tm_hour%10)+'0', 0);
-		        set_led(2, (temp_time.tm_min/10)+'0', 0);
-		        set_led(3, (temp_time.tm_min%10)+'0', 0);
+			if (scancode == KP_AL1)
+			{
+				state_time=key_ticks;
+				state=ST_AL1;
+			}
 
-		        set_led(4, (temp_time.tm_sec/10)+'0', 0);
-		        set_led(5, (temp_time.tm_sec%10)+'0', 0);
+			if (scancode == KP_AL2)
+			{
+				state_time=key_ticks;
+				state=ST_AL2;
+			}
 
+		        set_led(0, (rtc_time.ten_hour)+'0', 0);
+		        set_led(1, (rtc_time.one_hour)+'0', 0);
+		        set_led(2, (rtc_time.ten_minute)+'0', 0);
+		        set_led(3, (rtc_time.one_minute)+'0', 0);
+
+		        set_led(4, (rtc_time.ten_second)+'0', 0);
+		        set_led(5, (rtc_time.one_second)+'0', 0);
+
+			break;
+
+		case ST_AL1:
+		        set_led(0, (alarm_time[0].stm_hour/10)+'0', 0);
+		        set_led(1, (alarm_time[0].stm_hour%10)+'0', 0);
+		        set_led(2, (alarm_time[0].stm_min/10)+'0', 0);
+		        set_led(3, (alarm_time[0].stm_min%10)+'0', 0);
+			next_state=ST_IDLE;
+			state=ST_DOSETWAIT;
+			break;
+
+		case ST_AL2:
+		        set_led(0, (alarm_time[1].stm_hour/10)+'0', 0);
+		        set_led(1, (alarm_time[1].stm_hour%10)+'0', 0);
+		        set_led(2, (alarm_time[1].stm_min/10)+'0', 0);
+		        set_led(3, (alarm_time[1].stm_min%10)+'0', 0);
+			next_state=ST_IDLE;
+			state=ST_DOSETWAIT;
 			break;
 		case ST_SET:
 			if (scancode == KP_AL1)
@@ -185,7 +229,11 @@ void keypad(void)
 		        set_led(3, ' ', 0);
 			set_source=STMODE_ALARM1;
 			set_item=SETITEM_NONE;
-			gmtime_r(&alarm_time[0], &temp_time);
+			memset(&set_time, 0, (sizeof(packed_time)));
+			set_time.ten_hour = alarm_time[0].stm_hour/10;
+			set_time.one_hour = alarm_time[0].stm_hour%10;
+			set_time.ten_minute = alarm_time[0].stm_min/10;
+			set_time.one_minute = alarm_time[0].stm_min%10;
 			state = ST_DOSET;
 			break;
 		case ST_SET_AL2:
@@ -196,7 +244,11 @@ void keypad(void)
 		        set_led(3, ' ', 0);
 			set_source=STMODE_ALARM2;
 			set_item=SETITEM_NONE;
-			gmtime_r(&alarm_time[1], &temp_time);
+			memset(&set_time, 0, (sizeof(packed_time)));
+			set_time.ten_hour = alarm_time[1].stm_hour/10;
+			set_time.one_hour = alarm_time[1].stm_hour%10;
+			set_time.ten_minute = alarm_time[1].stm_min/10;
+			set_time.one_minute = alarm_time[1].stm_min%10;
 			state = ST_DOSET;
 			break;
 		case ST_SET_TIME:
@@ -207,11 +259,10 @@ void keypad(void)
 		        set_led(3, ' ', 0);
 			set_source=STMODE_CLOCK;
 			set_item=SETITEM_NONE;
-			gmtime_r(clock_time, &temp_time);
+			memcpy(&set_time, &rtc_time, (sizeof(packed_time)));
 			state = ST_DOSET;
 			break;
 		case ST_DOSET:
-			fprintf(stderr, "Divisor: %d\n", divisor);
 			switch(scancode)
 			{
 				case KP_HOUR:
@@ -223,7 +274,14 @@ void keypad(void)
 						state=ST_DOSETWAIT;
 					}
 					else
-						temp_time.tm_hour = (temp_time.tm_hour < 23 ? temp_time.tm_hour + 1 : 0);
+					{
+						uint8_t hour = (set_time.ten_hour * 10 ) + (set_time.one_hour);
+						hour = hour + kp_val ;
+						if ( hour > 23 ) hour = 0;
+						set_time.ten_hour = hour/10;
+						set_time.one_hour = hour%10;
+					}
+
 					break;
 
 				case KP_MIN:
@@ -235,25 +293,55 @@ void keypad(void)
 						state=ST_DOSETWAIT;
 					}
 					else
-						temp_time.tm_min = (temp_time.tm_min < 58 ? temp_time.tm_min + 1 : 0);
+					{
+						uint8_t min = (set_time.ten_minute * 10 ) + (set_time.one_minute);
+						min = min + kp_val ;
+						if ( min > 59 ) min = 0;
+						set_time.ten_minute = min/10;
+						set_time.one_minute = min%10;
+					}
+					break;
+				case KP_DAY:
+					state_time=key_ticks;
+					if (set_item != SETITEM_DOW)
+					{
+						set_item=SETITEM_DOW;
+						next_state=ST_DOSET;
+						state=ST_DOSETWAIT;
+					}
+					else
+					{
+						uint8_t day = set_time.dow;
+						day = day + kp_val ;
+						if ( day > 6 ) day = 0;
+						set_time.dow = day;
+					}
 					break;
 				case KP_SET:
 					if (set_source == STMODE_CLOCK)
 					{
 						fprintf(stderr, "Setting clock..\n");
-						rtc_time=mktime(&temp_time);
-						ds3231_writetime(rtc_time);
+						set_time.ten_second=0;
+						set_time.one_second=0;
+						memcpy(&rtc_time, &set_time, (sizeof(packed_time)));
+						ds3231_writetime(&rtc_time);
 					}
 					if (set_source == STMODE_ALARM1)
 					{
 						fprintf(stderr, "Setting Alarm 1..\n");
-						alarm_time[0] = mktime(&temp_time);
+						alarm_time[0].stm_sec=0;
+						alarm_time[0].stm_min=(set_time.ten_minute*10)+(set_time.one_minute);
+						alarm_time[0].stm_hour=(set_time.ten_hour*10)+(set_time.one_hour);
+						alarm_time[0].stm_day=set_time.dow;
 						writealarm(0);
 					}
 					if (set_source == STMODE_ALARM2)
 					{
 						fprintf(stderr, "Setting Alarm 2..\n");
-						alarm_time[1] = mktime(&temp_time);
+						alarm_time[1].stm_sec=0;
+						alarm_time[1].stm_min=(set_time.ten_minute*10)+(set_time.one_minute);
+						alarm_time[1].stm_hour=(set_time.ten_hour*10)+(set_time.one_hour);
+						alarm_time[1].stm_day=set_time.dow;
 						writealarm(1);
 					}
 					next_state=ST_IDLE;
@@ -266,16 +354,24 @@ void keypad(void)
 				case SETITEM_HOUR:
 					set_led(0, 'H', 1);
 					set_led(1, 'r', 1);
-					set_led(2, ((temp_time.tm_hour / 10) + '0'), 0);
-					set_led(3, ((temp_time.tm_hour % 10) + '0'), 0);
+					set_led(2, ((set_time.ten_hour) + '0'), 0);
+					set_led(3, ((set_time.one_hour) + '0'), 0);
 					break;
 
 				case SETITEM_MIN:
 					set_led(0, 'N', 1);
 					set_led(1, 'n', 1);
-					set_led(2, ((temp_time.tm_min / 10) + '0'), 0);
-					set_led(3, ((temp_time.tm_min % 10) + '0'), 0);
+					set_led(2, ((set_time.ten_minute) + '0'), 0);
+					set_led(3, ((set_time.one_minute) + '0'), 0);
 					break;
+
+				case SETITEM_DOW:
+					set_led(0, 'd', 1);
+					set_led(1, 'y', 1);
+					set_led(2, ((set_time.dow) + '0'), 0);
+					set_led(3, ' ', 0);
+					break;
+
 				default:
 					break;
 			}

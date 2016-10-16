@@ -1,6 +1,6 @@
 
-void ds3231_writetime(time_t time);
+void ds3231_writetime(packed_time *tm);
 uint8_t ds3231_read(uint8_t addr);
-time_t ds3231_readtime(void);
+void ds3231_readtime(packed_time *tm);
 
 

@@ -52,8 +52,8 @@ void writealarm(uint8_t idx)
 
 	uint8_t i;
 
-	for (i=0;i<sizeof(time_t);i++)
-	    at24c32_write(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(time_t)), *ptr++);
+	for (i=0;i<sizeof(packed_time);i++)
+	    at24c32_write(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(packed_time)), *ptr++);
 }
 
 void readalarm(uint8_t idx)
@@ -62,8 +62,8 @@ void readalarm(uint8_t idx)
 
 	uint8_t i;
 
-	for (i=0;i<sizeof(time_t);i++)
-	    *(ptr++)=at24c32_read(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(time_t)));
+	for (i=0;i<sizeof(packed_time);i++)
+	    *(ptr++)=at24c32_read(7, AT24_ALARM_BASE_ADDR + i + (idx * sizeof(packed_time)));
 
 }
 

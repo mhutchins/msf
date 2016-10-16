@@ -29,27 +29,6 @@ void max7219(uint8_t addr, uint8_t data)
 }
 
 
-void displaytime(time_t clock)
-{
-	struct tm time;
-
-	gmtime_r(&clock, &time);
-
-	//fprintf(&display_led, "%02u%02u T\n", time.tm_hour, time.tm_min);
-
-/*
-        max7219(MAX7219_DIGIT4, timeptr->tm_min%10);
-        max7219(MAX7219_DIGIT5, timeptr->tm_min/10);
-        max7219(MAX7219_DIGIT6, timeptr->tm_hour%10);
-        max7219(MAX7219_DIGIT7, timeptr->tm_hour/10);
-*/
-
-        //fprintf(&mylcd, "Hi ");
-
-	LCD_Clear();
-	fprintf(stderr, "CLOCK -> %02d:%02d\n", time.tm_hour, time.tm_min);
-}
-
 uint8_t getled(unsigned char ch)
 {
 	uint8_t retval;
