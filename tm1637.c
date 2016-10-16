@@ -104,5 +104,42 @@ uint8_t tm_ack(void)
 	DDRC |= (1 << TM_DATA);     // (OUTPUT)
 
 	return ack;
-	}
+}
+
+/*
+uint8_t SevenSegmentTM1637::comReadByte(void) const {
+  uint8_t readKey = 0;
+
+  comStart();
+  comWriteByte(TM1637_COM_SET_DATA | TM1637_SET_DATA_READ);
+  comAck();
+
+  pinAsInput(_pinDIO);
+  digitalHigh(_pinDIO);
+  delayMicroseconds(5);
+
+  for ( uint8_t i=0; i < 8; i++) {
+
+    readKey >>= 1;
+    digitalLow(_pinClk);
+    delayMicroseconds(30);
+
+    digitalHigh(_pinClk);
+
+    if ( isHigh(_pinDIO) ) {
+      readKey = readKey | B1000000;
+    };
+
+    delayMicroseconds(30);
+
+
+  };
+  pinAsOutput(_pinDIO);
+  comAck();
+  comStop();
+  return readKey;
+};
+
+
+*/
 
