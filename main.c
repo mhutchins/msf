@@ -16,6 +16,7 @@
 #include "ds3231.h"
 #include "max7219.h"
 #include <util/delay.h>
+#include "tm1637.h"
 
 
 #define BAUD 115200
@@ -120,6 +121,7 @@ int main(void)
 	i2c_init();
 	spi_init();
 	timer_init();
+	tm_init();
 	//struct tm temp_tm;
 
 /*
@@ -164,6 +166,8 @@ int main(void)
     // PD2 is now an input with pull-up enabled
 
 //PORTD &= ~(1 << PD3);        // LO
+    DDRC |= (1 << PD7);     // Clear the PD2 pin (OUTPUT) 
+    DDRC |= (1 << PD6);     // Clear the PD2 pin (OUTPUT) 
 
 /*
     EICRA |= (1 << ISC00);    // set INT0 to trigger on ANY logic change
@@ -205,43 +209,17 @@ int main(void)
 
     while(1)
     {
-	//fprintf(stderr, "AT:: 0x%02x 0x%02x \n", at24c32_read(7,1), at24c32_read(7,2));
-	//max7219(MAX7219_SHUTDOWN, 0x01);
 
-        //fprintf(&display_led, "Hello000");
-	//max7219(MAX7219_DIGIT0, (1 << count));
 	count++;
-	//count = count & 0x07;
-        /*main program loop here */
 
 	ds3231_readtime(&rtc_time);
-	//gmtime_r(&rtc_time, &temp_tm);
-/*
-	fprintf(stderr, "RTC RET: %02d:%02d ", temp_tm.tm_hour, temp_tm.tm_min);
-	fprintf(stderr, " %02d/%02d/%04d\n", temp_tm.tm_mday, temp_tm.tm_mon+1, temp_tm.tm_year+1900);
-*/
 
-	//clock_time=&rtc_time;
-	//LCD_Clear();
-	//fprintf(stdout, "Hi ");
-
-/*
-	if (count % 10)
-		lcd_bl= 1 - lcd_bl;
-
-*/
-
-
-
-/*
 	if (sync_flag == 1)
 	{
 		sync_flag=0;
 		fprintf(stderr, "SYNC\n");
-		decode();
+		//decode();
 	}
-	_delay_ms(100);
-*/
 
 	_delay_ms(80);
 
