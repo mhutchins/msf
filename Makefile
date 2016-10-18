@@ -4,6 +4,7 @@ LIBS=-L /usr/local/avr/lib/avr5 -lm
 #LIBS=-L ~/lib -lm
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
+CXXFLAGS=  $(MCU) $(CPU_SPEED) -Werror -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -fms-extensions  -ffunction-sections -fdata-sections 
 CFLAGS=  $(MCU) $(CPU_SPEED) -Werror -Wall -Os -Wl,-Map=$(PROJ).map,--gc-sections -fms-extensions  -ffunction-sections -fdata-sections --std=c99
 
 CC = avr-gcc

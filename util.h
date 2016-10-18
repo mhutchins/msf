@@ -11,3 +11,5 @@ uint8_t BcdToBin24Hour(uint8_t bcdHour);
 void readalarm(uint8_t idx);
 void writealarm(uint8_t idx);
 
+extern uint8_t track;
+

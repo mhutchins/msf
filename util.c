@@ -11,6 +11,8 @@
 #include "main.h"
 #include "at24c32.h"
 
+uint8_t track=0;
+
 char dayname[][4]={"Err", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
 
 #define AT24_ALARM_BASE_ADDR 0x10

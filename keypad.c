@@ -169,6 +169,12 @@ void keypad(void)
 				state_time=key_ticks;
 				state=ST_AL2;
 			}
+			if (scancode == KP_RAD)
+			{
+				track=1-track;
+				next_state=ST_IDLE;
+				state=ST_DOSETWAIT;
+			}
 
 		        set_led(0, (rtc_time.ten_hour)+'0', 0);
 		        set_led(1, (rtc_time.one_hour)+'0', 0);
